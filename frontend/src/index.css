@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  background-color: #0E1166;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Геометрический фон в стилистике YADRO:
+   косые полосы и сходящиеся под углом плоскости, как на скринах из ТЗ */
+.yadro-bg {
+  background-color: #0E1166;
+  background-image: url("/bg.png");
+  background-size: cover;        /* растянуть на весь экран без искажений */
+  background-position: center;   /* центрировать */
+  background-attachment: fixed;  /* не уезжает при скролле */
+  background-repeat: no-repeat;
+}
+
+/* Утилита: тонкая 1px-граница как на дизайне */
+.hairline {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Кастомный скроллбар для тёмной темы */
+.dark-scroll::-webkit-scrollbar { width: 6px; }
+.dark-scroll::-webkit-scrollbar-track { background: transparent; }
+.dark-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
