@@ -1,51 +1,88 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
 import { YadroLogo } from "./YadroLogo.jsx";
 
-/** Шапка: логотип слева, кнопка загрузки + профиль / регистрация справа. */
+/** Шапка: логотип, поиск по видео, кнопка загрузки / профиль. */
 export function TopBar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const q = query.trim();
+    navigate(q ? `/?q=${encodeURIComponent(q)}` : "/");
+  };
 
   return (
-    <header className="flex items-center justify-between px-8 py-6">
-      <Link to="/" aria-label="На главную">
+    <header className="flex items-center gap-4 px-6 py-5 md:px-8">
+      <Link to="/" aria-label="На главную" className="shrink-0">
         <YadroLogo size={44} />
       </Link>
 
+      {/* Поиск */}
+      <form onSubmit={submitSearch} className="mx-auto w-full max-w-md">
+        <div className="flex items-center gap-2 rounded-full border border-yadro-border bg-yadro-surface px-4 py-2.5 transition focus-within:border-yadro-primary/60">
+          <SearchIcon />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Поиск видео…"
+            className="w-full bg-transparent text-sm text-yadro-text placeholder:text-yadro-textMute outline-none"
+          />
+        </div>
+      </form>
+
+      {/* Правая часть */}
       {user ? (
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <Link
             to="/upload"
-            className="flex items-center gap-2 rounded-lg bg-yadro-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-yadro-primaryHover"
+            className="flex items-center gap-2 rounded-full bg-yadro-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-yadro-primaryHover"
           >
             <UploadIcon />
-            Загрузить
+            <span className="hidden sm:inline">Загрузить</span>
           </Link>
 
-          <div className="flex items-center gap-3 text-yadro-textMute">
-            <span className="text-sm">{user.first_name || user.email}</span>
+          <div className="hidden items-center gap-2.5 text-yadro-textMute md:flex">
             <UserIcon />
-            <button
-              onClick={logout}
-              className="rounded-md p-2 transition hover:bg-white/5"
-              aria-label="Выйти"
-              title="Выйти"
-            >
-              <LogoutIcon />
-            </button>
+            <span className="text-sm">{user.first_name || user.email}</span>
           </div>
+          <button
+            onClick={logout}
+            className="rounded-full p-2 text-yadro-textMute transition hover:bg-white/5"
+            aria-label="Выйти"
+            title="Выйти"
+          >
+            <LogoutIcon />
+          </button>
         </div>
       ) : (
         <Link
           to="/auth"
-          className="flex items-center gap-3 text-sm font-semibold text-yadro-text hover:text-yadro-accent"
+          className="flex shrink-0 items-center gap-2 rounded-full border border-yadro-border px-4 py-2 text-sm font-semibold text-yadro-text transition hover:border-yadro-primary/60"
         >
-          Войти
           <UserIcon />
+          Войти
         </Link>
       )}
     </header>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <circle cx="9" cy="9" r="6" stroke="#9D9AAE" strokeWidth="1.7" />
+      <path
+        d="M13.5 13.5L17 17"
+        stroke="#9D9AAE"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -65,7 +102,7 @@ function UploadIcon() {
 
 function UserIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden>
+    <svg width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden>
       <circle cx="14" cy="14" r="13" stroke="currentColor" strokeWidth="1.5" />
       <circle cx="14" cy="11" r="3.5" stroke="currentColor" strokeWidth="1.5" />
       <path

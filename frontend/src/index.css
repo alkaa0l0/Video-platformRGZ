@@ -1,52 +1,52 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 :root {
   color-scheme: dark;
 }
- 
+
 html,
 body,
 #root {
   height: 100%;
 }
- 
+
 body {
   margin: 0;
   font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  background-color: #0D0D0F;
+  background-color: #16151D;
   color: #fff;
   -webkit-font-smoothing: antialiased;
 }
- 
-/* Фон темы "Studio": near-black + мягкие коралловые блики
-   + тонкая точечная сетка. Никакой геометрии YADRO. */
+
+/* Фон темы "Studio": тёплый тёмный + мягкие коралловые блики
+   + очень тонкая точечная сетка. */
 .yadro-bg {
-  background-color: #0D0D0F;
+  background-color: #16151D;
   background-image:
-    radial-gradient(circle at 12% 16%, rgba(255, 92, 57, 0.12), transparent 30%),
-    radial-gradient(circle at 88% 84%, rgba(255, 92, 57, 0.09), transparent 32%),
-    radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: auto, auto, 22px 22px;
+    radial-gradient(circle at 12% 14%, rgba(255, 107, 71, 0.14), transparent 32%),
+    radial-gradient(circle at 88% 88%, rgba(255, 107, 71, 0.10), transparent 34%),
+    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: auto, auto, 24px 24px;
   background-attachment: fixed;
 }
- 
-/* Тонкая граница */
+
 .hairline {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.09);
 }
- 
-/* Скроллбар */
+
 .dark-scroll::-webkit-scrollbar { width: 6px; }
 .dark-scroll::-webkit-scrollbar-track { background: transparent; }
 .dark-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
   border-radius: 3px;
 }
- 
-/* Свечение для акцентных элементов */
-.glow-ring {
-  box-shadow: 0 0 0 1px rgba(255, 92, 57, 0.4),
-              0 8px 30px -8px rgba(255, 92, 57, 0.4);
+
+/* Ограничение строк для названий видео */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

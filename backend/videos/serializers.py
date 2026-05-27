@@ -7,6 +7,9 @@ class VideoSerializer(serializers.ModelSerializer):
     owner_email = serializers.ReadOnlyField(source="owner.email")
     file_url = serializers.SerializerMethodField()
     poster_url = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    dislikes_count = serializers.SerializerMethodField()
+    my_reaction = serializers.SerializerMethodField()
 
     class Meta:
         model = Video
@@ -22,8 +25,21 @@ class VideoSerializer(serializers.ModelSerializer):
             "views",
             "owner_email",
             "created_at",
+            "likes_count",
+            "dislikes_count",
+            "my_reaction",
         )
-        read_only_fields = ("id", "views", "owner_email", "created_at", "file_url", "poster_url")
+        read_only_fields = (
+            "id",
+            "views",
+            "owner_email",
+            "created_at",
+            "file_url",
+            "poster_url",
+            "likes_count",
+            "dislikes_count",
+            "my_reaction",
+        )
         extra_kwargs = {
             "file": {"write_only": True},
             "poster": {"write_only": True, "required": False},
@@ -36,9 +52,21 @@ class VideoSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(url) if request else url
 
     def get_file_url(self, obj):
-        request = self.context.get("request")
-        return self._abs(request, obj.file)
+        return self._abs(self.context.get("request"), obj.file)
 
     def get_poster_url(self, obj):
+        return self._abs(self.context.get("request"), obj.poster)
+
+    def get_likes_count(self, obj):
+        return obj.reactions.filter(value="like").count()
+
+    def get_dislikes_count(self, obj):
+        return obj.reactions.filter(value="dislike").count()
+
+    def get_my_reaction(self, obj):
+        """Возвращает 'like', 'dislike' или None для текущего пользователя."""
         request = self.context.get("request")
-        return self._abs(request, obj.poster)
+        if not request or not request.user.is_authenticated:
+            return None
+        reaction = obj.reactions.filter(user=request.user).first()
+        return reaction.value if reaction else None

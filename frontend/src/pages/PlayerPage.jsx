@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../api/client.js";
 import { ChatPanel } from "../components/ChatPanel.jsx";
 import { RecommendedVideos } from "../components/RecommendedVideos.jsx";
 import { TopBar } from "../components/TopBar.jsx";
 import { VideoPlayer } from "../components/VideoPlayer.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 /**
- * Страница просмотра: плеер слева, чат и рекомендованные видео справа.
+ * Страница просмотра: плеер + лайки слева, чат и рекомендации справа.
  */
 export function PlayerPage() {
   const { id } = useParams();
@@ -51,7 +52,7 @@ export function PlayerPage() {
       <TopBar />
 
       <main className="grid gap-6 px-6 pb-16 lg:grid-cols-[1fr_380px] lg:px-12">
-        {/* Левая колонка — плеер */}
+        {/* Левая колонка */}
         <section className="min-h-[60vh]">
           {loading && <PlayerSkeleton />}
           {!loading && video && (
@@ -59,14 +60,19 @@ export function PlayerPage() {
               <VideoPlayer src={streamUrl} poster={video.poster_url} />
               <div className="mt-5">
                 <h1 className="text-2xl font-bold text-white">{video.title}</h1>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-yadro-textMute">
+                    {video.views} просмотров · {video.owner_email}
+                  </p>
+                  <ReactionBar video={video} onChange={setVideo} />
+                </div>
+
                 {video.description && (
-                  <p className="mt-2 text-sm text-yadro-textMute">
+                  <p className="mt-4 rounded-xl2 bg-yadro-surface/60 p-4 text-sm text-yadro-textMute">
                     {video.description}
                   </p>
                 )}
-                <p className="mt-3 text-xs text-yadro-textMute">
-                  {video.views} просмотров · {video.owner_email}
-                </p>
               </div>
             </>
           )}
@@ -80,7 +86,7 @@ export function PlayerPage() {
           )}
         </section>
 
-        {/* Правая колонка — чат + рекомендованные */}
+        {/* Правая колонка */}
         <section className="space-y-6">
           {video && (
             <>
@@ -93,6 +99,94 @@ export function PlayerPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+/* Кнопки лайк / дизлайк */
+function ReactionBar({ video, onChange }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  const react = async (value) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/api/videos/${video.id}/react/`, {
+        value,
+      });
+      onChange({
+        ...video,
+        likes_count: data.likes,
+        dislikes_count: data.dislikes,
+        my_reaction: data.my_reaction,
+      });
+    } catch {
+      /* тихо игнорируем */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const liked = video.my_reaction === "like";
+  const disliked = video.my_reaction === "dislike";
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => react("like")}
+        disabled={busy}
+        className={[
+          "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+          liked
+            ? "bg-yadro-ok/20 text-yadro-ok"
+            : "bg-yadro-surface text-yadro-textMute hover:text-white",
+        ].join(" ")}
+        aria-label="Нравится"
+      >
+        <ThumbIcon filled={liked} />
+        {video.likes_count ?? 0}
+      </button>
+
+      <button
+        onClick={() => react("dislike")}
+        disabled={busy}
+        className={[
+          "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+          disliked
+            ? "bg-yadro-primary/20 text-yadro-primary"
+            : "bg-yadro-surface text-yadro-textMute hover:text-white",
+        ].join(" ")}
+        aria-label="Не нравится"
+      >
+        <ThumbIcon filled={disliked} down />
+        {video.dislikes_count ?? 0}
+      </button>
+    </div>
+  );
+}
+
+function ThumbIcon({ filled, down }) {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      style={{ transform: down ? "rotate(180deg)" : "none" }}
+      aria-hidden
+    >
+      <path
+        d="M7 10v10H4V10h3zm3 0l3.5-7c1.4 0 2.5 1.1 2.5 2.5V8h4.2c1 0 1.8.9 1.6 1.9l-1.4 7c-.2 1-1 1.6-2 1.6H10V10z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

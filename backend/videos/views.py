@@ -1,18 +1,17 @@
 import os
 import re
 
-from django.http import FileResponse, Http404, HttpResponse, StreamingHttpResponse
+from django.http import FileResponse, Http404, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
-from .models import Video
+from .models import Video, VideoReaction
 from .serializers import VideoSerializer
 
-
-CHUNK_SIZE = 8192 * 1024  # 8 МБ — комфортный размер чанка для потокового видео
+CHUNK_SIZE = 8192 * 1024  # 8 МБ — размер чанка для потокового видео
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
@@ -26,8 +25,8 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
 class VideoListCreateView(generics.ListCreateAPIView):
     """
-    GET  /api/videos/         — список видео (доступно всем)
-    POST /api/videos/         — загрузка нового видео (только авторизованные)
+    GET  /api/videos/   — список видео (доступно всем)
+    POST /api/videos/   — загрузка видео (только авторизованные)
     """
     serializer_class = VideoSerializer
     parser_classes = (MultiPartParser, FormParser)
@@ -51,8 +50,8 @@ class VideoDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsOwnerOrReadOnly,)
 
 
-def _range_response(file_path: str, range_header: str, content_type: str):
-    """Отдаёт фрагмент файла согласно HTTP Range — для нормальной перемотки."""
+def _range_response(file_path, range_header, content_type):
+    """Отдаёт фрагмент файла согласно HTTP Range — для перемотки."""
     size = os.path.getsize(file_path)
     match = re.match(r"bytes=(\d+)-(\d*)", range_header)
     if not match:
@@ -69,8 +68,7 @@ def _range_response(file_path: str, range_header: str, content_type: str):
             f.seek(start)
             remaining = length
             while remaining > 0:
-                read_size = min(8192, remaining)
-                data = f.read(read_size)
+                data = f.read(min(8192, remaining))
                 if not data:
                     break
                 yield data
@@ -87,11 +85,8 @@ def _range_response(file_path: str, range_header: str, content_type: str):
 
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
-def stream_video(request, pk: int):
-    """
-    GET /api/videos/<id>/stream/
-    Потоковая отдача видео с поддержкой HTTP Range для перемотки.
-    """
+def stream_video(request, pk):
+    """GET /api/videos/<id>/stream/ — потоковая отдача с поддержкой Range."""
     video = get_object_or_404(Video, pk=pk)
     if not video.file:
         raise Http404("Файл не найден")
@@ -107,8 +102,44 @@ def stream_video(request, pk: int):
         if resp is not None:
             return resp
 
-    # Полный файл, если Range не передан
     response = FileResponse(open(file_path, "rb"), content_type=content_type)
     response["Accept-Ranges"] = "bytes"
     response["Content-Length"] = str(os.path.getsize(file_path))
     return response
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def react_video(request, pk):
+    """
+    POST /api/videos/<id>/react/ — лайк или дизлайк.
+    Тело запроса: {"value": "like"} или {"value": "dislike"}.
+    Повторное нажатие той же реакции снимает её.
+    """
+    video = get_object_or_404(Video, pk=pk)
+    value = request.data.get("value")
+
+    if value not in (VideoReaction.LIKE, VideoReaction.DISLIKE):
+        return Response(
+            {"detail": "value должно быть 'like' или 'dislike'"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    reaction = VideoReaction.objects.filter(video=video, user=request.user).first()
+
+    if reaction is None:
+        VideoReaction.objects.create(video=video, user=request.user, value=value)
+        my = value
+    elif reaction.value == value:
+        reaction.delete()          # повторное нажатие — снять реакцию
+        my = None
+    else:
+        reaction.value = value     # переключить лайк <-> дизлайк
+        reaction.save(update_fields=["value"])
+        my = value
+
+    return Response({
+        "my_reaction": my,
+        "likes": video.reactions.filter(value="like").count(),
+        "dislikes": video.reactions.filter(value="dislike").count(),
+    })

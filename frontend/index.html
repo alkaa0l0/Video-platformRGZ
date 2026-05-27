@@ -1,18 +1,52 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <title>YADRO — видеоплатформа</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  background-color: #16151D;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Фон темы "Studio": тёплый тёмный + мягкие коралловые блики
+   + очень тонкая точечная сетка. */
+.yadro-bg {
+  background-color: #16151D;
+  background-image:
+    radial-gradient(circle at 12% 14%, rgba(255, 107, 71, 0.14), transparent 32%),
+    radial-gradient(circle at 88% 88%, rgba(255, 107, 71, 0.10), transparent 34%),
+    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: auto, auto, 24px 24px;
+  background-attachment: fixed;
+}
+
+.hairline {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.dark-scroll::-webkit-scrollbar { width: 6px; }
+.dark-scroll::-webkit-scrollbar-track { background: transparent; }
+.dark-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+}
+
+/* Ограничение строк для названий видео */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
