@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { api } from "../api/client.js";
 import { Button } from "../components/Button.jsx";
@@ -9,31 +9,40 @@ import { TopBar } from "../components/TopBar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 /**
- * Страница «Регистрация» + вкладка «Код доступа».
- * Соответствует страницам 14 и 16 PDF.
+ * Страница авторизации: вкладки «Вход» и «Регистрация».
+ * Отдельный режим «recover» — восстановление кода доступа.
+ * После входа/регистрации пользователь остаётся залогинен:
+ * токены сохраняются в браузере (см. AuthContext + client.js).
  */
 export function AuthPage() {
-  const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "code" ? "code" : "register";
-  const setTab = (v) => setParams({ tab: v });
+  // mode: 'login' | 'register' | 'recover'
+  const [mode, setMode] = useState("login");
 
   return (
     <div className="yadro-bg min-h-screen">
       <TopBar />
 
-      <main className="flex flex-col items-center px-4 pb-16">
-        <div className="w-full max-w-[460px]">
-          <Tabs
-            value={tab}
-            onChange={setTab}
-            items={[
-              { value: "register", label: "Регистрация" },
-              { value: "code", label: "Код доступа" },
-            ]}
-          />
+      <main className="flex flex-col items-center px-4 pb-20">
+        <div className="w-full max-w-[420px]">
+          {mode !== "recover" && (
+            <Tabs
+              value={mode}
+              onChange={setMode}
+              items={[
+                { value: "login", label: "Вход" },
+                { value: "register", label: "Регистрация" },
+              ]}
+            />
+          )}
 
-          <div className="mt-6 rounded-xl bg-yadro-surface/85 p-7 shadow-card backdrop-blur-sm hairline">
-            {tab === "register" ? <RegisterForm /> : <AccessCodeForm />}
+          <div className="mt-6 rounded-xl2 bg-yadro-surface/85 p-7 shadow-card hairline">
+            {mode === "login" && (
+              <LoginForm onRecover={() => setMode("recover")} />
+            )}
+            {mode === "register" && <RegisterForm />}
+            {mode === "recover" && (
+              <RecoverForm onBack={() => setMode("login")} />
+            )}
           </div>
         </div>
       </main>
@@ -41,6 +50,92 @@ export function AuthPage() {
   );
 }
 
+/* Достаёт читаемый текст ошибки из ответа DRF */
+function readError(err, fallback) {
+  const d = err?.response?.data;
+  if (!d) return fallback;
+  if (typeof d === "string") return d;
+  return (
+    d.detail ||
+    d.non_field_errors?.[0] ||
+    d.email?.[0] ||
+    d.password?.[0] ||
+    fallback
+  );
+}
+
+/* ---------- ВХОД ---------- */
+function LoginForm({ onRecover }) {
+  const { login } = useAuth();
+  const nav = useNavigate();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await login(form.email, form.password);
+      nav("/");
+    } catch (err) {
+      setError(readError(err, "Неверный email или пароль."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-5">
+      <div>
+        <h2 className="text-xl font-bold text-white">С возвращением</h2>
+        <p className="mt-1 text-sm text-yadro-textMute">
+          Войдите, чтобы загружать видео и писать в чат.
+        </p>
+      </div>
+
+      <Field
+        label="Электронная почта"
+        type="email"
+        autoComplete="email"
+        value={form.email}
+        onChange={onChange("email")}
+        placeholder="my_email@mail.com"
+      />
+      <Field
+        label="Пароль"
+        type="password"
+        autoComplete="current-password"
+        value={form.password}
+        onChange={onChange("password")}
+        placeholder="Ваш пароль"
+      />
+
+      {error && (
+        <p className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
+
+      <Button type="submit" disabled={busy}>
+        {busy ? "Входим…" : "Войти"}
+      </Button>
+
+      <button
+        type="button"
+        onClick={onRecover}
+        className="block w-full text-center text-xs text-yadro-textMute hover:text-yadro-accent"
+      >
+        Не помню код доступа
+      </button>
+    </form>
+  );
+}
+
+/* ---------- РЕГИСТРАЦИЯ ---------- */
 function RegisterForm() {
   const { register } = useAuth();
   const nav = useNavigate();
@@ -66,7 +161,10 @@ function RegisterForm() {
       const data = err?.response?.data || {};
       setErrors(
         Object.fromEntries(
-          Object.entries(data).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)])
+          Object.entries(data).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v[0] : String(v),
+          ])
         )
       );
     } finally {
@@ -76,7 +174,13 @@ function RegisterForm() {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <SectionTitle>Данные для авторизации</SectionTitle>
+      <div>
+        <h2 className="text-xl font-bold text-white">Создать аккаунт</h2>
+        <p className="mt-1 text-sm text-yadro-textMute">
+          Это займёт меньше минуты.
+        </p>
+      </div>
+
       <Field
         label="Электронная почта"
         type="email"
@@ -97,8 +201,6 @@ function RegisterForm() {
         placeholder="Минимум 6 символов"
         error={errors.password}
       />
-
-      <SectionTitle>Прочие данные</SectionTitle>
       <Field
         label="Фамилия"
         required
@@ -117,15 +219,18 @@ function RegisterForm() {
       />
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Отправляем…" : "Отправить"}
+        {busy ? "Создаём…" : "Зарегистрироваться"}
       </Button>
 
-      <p className="text-xs text-yadro-textMute">* поле, обязательное для заполнения</p>
+      <p className="text-xs text-yadro-textMute">
+        * все поля обязательны для заполнения
+      </p>
     </form>
   );
 }
 
-function AccessCodeForm() {
+/* ---------- ВОССТАНОВЛЕНИЕ ---------- */
+function RecoverForm({ onBack }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState("");
@@ -136,7 +241,7 @@ function AccessCodeForm() {
     setError("");
     setInfo("");
     if (!email) {
-      setError("Поле обязательно для заполнения");
+      setError("Введите электронную почту.");
       return;
     }
     setBusy(true);
@@ -146,7 +251,7 @@ function AccessCodeForm() {
       if (data.debug_code) text += ` Тестовый код: ${data.debug_code}`;
       setInfo(text);
     } catch (err) {
-      setError(err?.response?.data?.email?.[0] || "Не удалось отправить код");
+      setError(readError(err, "Не удалось отправить код."));
     } finally {
       setBusy(false);
     }
@@ -154,22 +259,43 @@ function AccessCodeForm() {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <SectionTitle>Укажите электронную почту для восстановления кода</SectionTitle>
+      <div>
+        <h2 className="text-xl font-bold text-white">Восстановление доступа</h2>
+        <p className="mt-1 text-sm text-yadro-textMute">
+          Укажите почту — отправим код для восстановления.
+        </p>
+      </div>
+
       <Field
+        label="Электронная почта"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="mail@mail.com"
-        error={error}
+        placeholder="my_email@mail.com"
       />
+
+      {error && (
+        <p className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
+      {info && (
+        <p className="rounded-md bg-yadro-primary/10 px-4 py-3 text-sm text-yadro-accent2">
+          {info}
+        </p>
+      )}
+
       <Button type="submit" disabled={busy}>
         {busy ? "Отправляем…" : "Отправить код"}
       </Button>
-      {info && <p className="text-xs text-yadro-accent">{info}</p>}
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="block w-full text-center text-xs text-yadro-textMute hover:text-yadro-accent"
+      >
+        ← Вернуться ко входу
+      </button>
     </form>
   );
-}
-
-function SectionTitle({ children }) {
-  return <h3 className="text-base font-bold tracking-wide text-white">{children}</h3>;
 }
